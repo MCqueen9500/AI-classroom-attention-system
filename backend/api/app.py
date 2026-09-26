@@ -47,6 +47,20 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables ready.")
 
+    # Seed default admin if needed
+    from db.session import AsyncSessionLocal
+    from db.models import Teacher
+    from sqlalchemy import select
+    import hashlib
+    async with AsyncSessionLocal() as db:
+        res = await db.execute(select(Teacher).limit(1))
+        if not res.scalars().first():
+            pwd_hash = hashlib.sha256("password".encode()).hexdigest()
+            admin = Teacher(username="admin", password_hash=pwd_hash, name="Dr. Admin")
+            db.add(admin)
+            await db.commit()
+            logger.info("Created default admin user (admin/password).")
+
     # Launch WebSocket broadcast background task
     broadcast_task = asyncio.create_task(broadcast_loop())
     logger.info("WebSocket broadcast loop started.")
