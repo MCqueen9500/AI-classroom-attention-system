@@ -43,14 +43,11 @@ from pipelines.vision.posture_scorer      import PostureScorer
 from pipelines.vision.overlay             import draw_frame_overlay
 from pipelines.vision.face_recognizer     import FaceRecognizer
 
-from db.session import init_db, AsyncSessionLocal
-from db.crud    import (
-    compute_instantaneous_attention,
-    get_active_session,
-    create_session,
-    log_visual_attention,
-    list_students,
-)
+import requests
+API_BASE = "http://localhost:8000/api"
+
+# We only need the formula from crud now
+from db.crud import compute_instantaneous_attention
 from core.config         import settings
 from core.logging_config import setup_logging
 
@@ -72,49 +69,52 @@ def run_async(coro):
     return future.result(timeout=10)
 
 
-async def get_or_create_session():
-    async with AsyncSessionLocal() as db:
-        session = await get_active_session(db)
-        if session:
-            logger.info("Found active session: %s (%s)", session.session_id, session.subject_name)
-            return session.session_id
-        # Create a demo session valid for 2 hours
-        from datetime import timedelta
-        session = await create_session(
-            db,
-            subject_name="Live Demo Session",
-            scheduled_start=datetime.utcnow(),
-            scheduled_end=datetime.utcnow() + timedelta(hours=2),
-        )
-        logger.info("Created new session: %s", session.session_id)
-        return session.session_id
+def get_or_create_session():
+    try:
+        res = requests.get(f"{API_BASE}/sessions/active")
+        if res.status_code == 200:
+            return res.json()["session_id"]
+        # Create one if none active
+        from datetime import datetime, timedelta
+        payload = {
+            "subject_name": "Live Demo Session",
+            "scheduled_start": datetime.utcnow().isoformat(),
+            "scheduled_end": (datetime.utcnow() + timedelta(hours=2)).isoformat()
+        }
+        res = requests.post(f"{API_BASE}/sessions", json=payload)
+        return res.json()["session_id"]
+    except Exception as e:
+        logger.error(f"Failed to connect to API: {e}")
+        return "fallback-session-id"
 
+def write_attention_log(session_id, roll_no, h_i, g_i, p_i, confidence):
+    import threading
+    def push():
+        try:
+            requests.post(f"{API_BASE}/telemetry/log", json={
+                "session_id": str(session_id),
+                "roll_no": int(roll_no),
+                "h_i": float(h_i),
+                "g_i": float(g_i),
+                "p_i": float(p_i),
+                "confidence": float(confidence)
+            }, timeout=1.0)
+        except:
+            pass
+    threading.Thread(target=push, daemon=True).start()
 
-async def write_attention_log(session_id, roll_no, h_i, g_i, p_i, confidence):
-    """Write one frame's attention scores to the database."""
-    async with AsyncSessionLocal() as db:
-        await log_visual_attention(
-            db=db,
-            session_id=session_id,
-            roll_no=roll_no,
-            head_pose_score=h_i,
-            eye_gaze_score=g_i,
-            posture_score=p_i,
-            confidence=confidence,
-            timestamp=datetime.utcnow(),
-        )
-
-
-async def fetch_student_embeddings():
-    """Fetch all registered face embeddings from DB."""
-    async with AsyncSessionLocal() as db:
-        students = await list_students(db, limit=100)
-        embeddings = {}
-        for s in students:
-            if s.face_embedding is not None:
-                import numpy as np
-                embeddings[s.roll_no] = np.array(s.face_embedding, dtype=np.float32)
-        return embeddings
+def fetch_student_embeddings():
+    import numpy as np
+    embeddings = {}
+    try:
+        res = requests.get(f"{API_BASE}/students/all/embeddings")
+        if res.status_code == 200:
+            data = res.json()
+            for r_str, emb_list in data.items():
+                embeddings[int(r_str)] = np.array(emb_list, dtype=np.float32)
+    except Exception as e:
+        logger.error(f"Failed to fetch embeddings: {e}")
+    return embeddings
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main pipeline
@@ -122,19 +122,9 @@ async def fetch_student_embeddings():
 def run(use_mock=False, show_window=True):
 
     # ── Step 1: Initialize DB ────────────────────────────────────────────────
-    logger.info("Step 1/4 — Initializing database tables...")
-    run_async(init_db())
-
-    # ── Step 2: Get active session ───────────────────────────────────────────
-    logger.info("Step 2/4 — Getting active session from DB...")
-    session_id = run_async(get_or_create_session())
-
-    # Get student roll numbers to assign faces to
-    known_rolls = run_async(fetch_student_rolls(limit=30))
-    logger.info("Loaded %d known students from DB", len(known_rolls))
-
-    # ── Step 3: Start HAL video source ───────────────────────────────────────
-    logger.info("Step 3/4 — Starting video source (HAL)...")
+    # ── Step 1: Get active session ───────────────────────────────────────────
+    logger.info("Step 1/3 — Getting active session from API...")
+    session_id = get_or_create_session()
     source = (
         MockVideoSource(total_frames=-1, fps=15.0)
         if use_mock
@@ -157,9 +147,9 @@ def run(use_mock=False, show_window=True):
     hp_scorer = HeadPoseScorer()
     recognizer = FaceRecognizer()
 
-    # Load embeddings from DB
-    known_embeddings = run_async(fetch_student_embeddings())
-    logger.info("Loaded %d registered face embeddings from DB", len(known_embeddings))
+    # Load embeddings from API
+    known_embeddings = fetch_student_embeddings()
+    logger.info("Loaded %d registered face embeddings from API", len(known_embeddings))
 
     # Per-face scorer state (indexed by face position slot)
     ear_scorers  = {}
@@ -241,12 +231,13 @@ def run(use_mock=False, show_window=True):
                 # ── PHASE 2: Write to DB every DB_WRITE_EVERY frames ─────────
                 if frame_count % DB_WRITE_EVERY == 0:
                     try:
-                        run_async(write_attention_log(
+                        # Pushes asynchronously via requests in a thread, or just block lightly
+                        write_attention_log(
                             session_id=session_id,
                             roll_no=roll_no,
                             h_i=h_i, g_i=g_i, p_i=p_i,
                             confidence=confidence,
-                        ))
+                        )
                         db_write_counter += 1
                     except Exception as e:
                         logger.warning("DB write failed: %s", e)

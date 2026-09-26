@@ -153,3 +153,13 @@ async def register_student_face(roll_no: int, payload: FaceRegistration, db: Asy
     student.face_embedding = embedding.tolist()
     await db.commit()
     return {'status': 'success', 'message': f'Face registered for roll {roll_no}'}
+
+@router.get('/all/embeddings')
+async def get_all_embeddings(db: AsyncSession = Depends(get_db)):
+    from db.crud import list_students
+    students = await list_students(db, limit=1000)
+    result = {}
+    for s in students:
+        if s.face_embedding is not None:
+            result[s.roll_no] = s.face_embedding
+    return result

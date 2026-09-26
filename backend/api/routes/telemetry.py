@@ -72,3 +72,29 @@ async def push_audio(data: AudioPush):
     pipeline_state.update_qa_window(qa)
     return {"status": "ok"}
 
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from db.session import get_db
+
+class AttentionLogPayload(BaseModel):
+    session_id: str
+    roll_no: int
+    h_i: float
+    g_i: float
+    p_i: float
+    confidence: float
+
+@router.post('/log')
+async def log_telemetry(payload: AttentionLogPayload, db: AsyncSession = Depends(get_db)):
+    from db.crud import log_visual_attention
+    await log_visual_attention(
+        db=db,
+        session_id=payload.session_id,
+        roll_no=payload.roll_no,
+        h_i=payload.h_i,
+        g_i=payload.g_i,
+        p_i=payload.p_i,
+        confidence=payload.confidence
+    )
+    return {'status': 'logged'}
