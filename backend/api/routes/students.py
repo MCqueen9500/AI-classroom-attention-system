@@ -136,7 +136,7 @@ async def register_student_face(roll_no: int, payload: FaceRegistration, db: Asy
     except Exception as e:
         raise HTTPException(status_code=400, detail=f'Image decoding failed: {e}')
 
-    detector = build_face_detector(prefer='mediapipe', min_detection_confidence=0.5)
+    detector = build_face_detector(prefer='yunet', min_detection_confidence=0.5)
     detections = detector.detect(bgr)
     if not detections:
         raise HTTPException(status_code=400, detail='No face detected in the image.')
