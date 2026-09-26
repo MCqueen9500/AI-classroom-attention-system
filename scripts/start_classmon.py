@@ -88,15 +88,19 @@ if __name__ == "__main__":
     # as it requires main thread for OpenCV cv2.imshow
     # The user can just run scripts/run_server.py and scripts/run_full_pipeline.py separately for now.
 
-    # Start API in background thread
-    api_thread = threading.Thread(target=start_api, daemon=True)
-    api_thread.start()
-    
-    # Wait for API to boot
-    time.sleep(2)
-    
-    try:
-        print("\nPress Ctrl+C to stop.\n")
-        start_audio()
-    except KeyboardInterrupt:
-        print("\nShutting down...")
+    # Start API in background thread (or foreground if on cloud)
+    if os.environ.get("RENDER"):
+        print("☁️ Detected Render cloud environment. Skipping local Audio/Vision edge pipelines.")
+        start_api()
+    else:
+        api_thread = threading.Thread(target=start_api, daemon=True)
+        api_thread.start()
+        
+        # Wait for API to boot
+        time.sleep(2)
+        
+        try:
+            print("\nPress Ctrl+C to stop.\n")
+            start_audio()
+        except KeyboardInterrupt:
+            print("\nShutting down...")
