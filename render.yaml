@@ -2,7 +2,7 @@ services:
   - type: web
     name: classmon-api
     env: python
-    buildCommand: "pip install -r requirements.txt"
+    buildCommand: "cd dashboard && npm install && npm run build && cd .. && pip install -r requirements.txt"
     startCommand: "python scripts/start_classmon.py"
     envVars:
       - key: PORT
