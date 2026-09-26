@@ -1,0 +1,12 @@
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+.env
+models/*.onnx
+models/*.tflite
+models/*.task
+classmon.db
+dashboard/dist/
+.vscode/
+.idea/

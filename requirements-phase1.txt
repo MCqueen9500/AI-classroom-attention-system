@@ -1,0 +1,30 @@
+# Phase 1 – Core HAL dependencies only
+# Install with:  pip install -r requirements-phase1.txt
+
+# Web framework (needed from Phase 5, listed here for venv completeness)
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+websockets==13.1
+python-multipart==0.0.12
+
+# Settings management
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# Computer Vision (Phase 3 – install now so venv is ready)
+# numpy 2.x has prebuilt wheels for Python 3.13 on Windows
+numpy>=2.0.0
+opencv-python>=4.10.0
+
+# Audio (Phase 4 – install now)
+sounddevice==0.5.1
+
+# Database (Phase 2)
+sqlalchemy==2.0.36
+aiosqlite==0.20.0          # SQLite async driver (dev/testing)
+asyncpg==0.30.0            # PostgreSQL async driver (production)
+alembic==1.14.0            # DB migrations
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
