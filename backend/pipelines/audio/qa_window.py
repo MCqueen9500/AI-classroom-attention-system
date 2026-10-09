@@ -181,7 +181,7 @@ class QAWindowManager:
         def _post():
             try:
                 req.post(
-                    "http://localhost:8000/api/telemetry/audio",
+                    "http://127.0.0.1:8000/api/telemetry/audio",
                     json={"qa_active": active, "qa_asked_roll": roll,
                           "qa_question": question, "qa_seconds": seconds},
                     timeout=1,

@@ -10,7 +10,7 @@ Run it first in a dedicated terminal:
     python scripts/start_classmon.py  ← Terminal 2 (Audio edge pipeline)
 
 This script:
-  1. Reads CLASSMON_API_URL from the environment (default: http://localhost:8000)
+  1. Reads CLASSMON_API_URL from the environment (default: http://127.0.0.1:8000)
   2. Health-checks the API (up to 10 retries, 2s apart) before proceeding
   3. Launches the Audio Pipeline on the main thread
 
@@ -36,7 +36,7 @@ logger = logging.getLogger("startup")
 # ---------------------------------------------------------------------------
 # REPAIR 5A: Cloud/Edge separation — API base URL from environment
 # ---------------------------------------------------------------------------
-API_BASE = os.getenv("CLASSMON_API_URL", "http://localhost:8000")
+API_BASE = os.getenv("CLASSMON_API_URL", "http://127.0.0.1:8000")
 
 print("TIP: Run 'python run_server.py' in a SEPARATE terminal first.")
 

@@ -47,7 +47,7 @@ from core.config import settings
 logger = logging.getLogger(__name__)
 
 # REPAIR 3B: Dynamic API base — reads CLASSMON_API_URL env var
-_API_BASE = os.getenv("CLASSMON_API_URL", "http://localhost:8000")
+_API_BASE = os.getenv("CLASSMON_API_URL", "http://127.0.0.1:8000")
 
 # ---------------------------------------------------------------------------
 # BUG FIX 1: Flexible roll-number extractor with word-to-digit map
