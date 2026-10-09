@@ -23,7 +23,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Prompt: Intent Classification — Is teacher asking a question?
+# Prompt: Intent Classification â€” Is teacher asking a question?
 # ---------------------------------------------------------------------------
 INTENT_PROMPT = """You are a classroom AI assistant. A teacher spoke to a specific student.
 
@@ -50,9 +50,64 @@ QUESTION_KEYWORDS = [
 CASUAL_KEYWORDS = [
     "sit", "stand", "come", "go", "stop", "be quiet", "pay attention",
     "are you", "good morning", "good afternoon", "hello", "hi",
-    "okay", "alright", "please", "thank you", "write", "open",
+    "alright", "thank you", "write", "open",
     "close", "read", "look at", "listen", "watch", "turn",
 ]
+
+
+def _keyword_classify_intent_fn(utterance: str) -> dict:
+    """
+    Module-level keyword intent classifier.
+    Used by AudioPipeline when Ollama is unavailable â€” avoids
+    instantiating a dummy LLMAnswerScorer.
+
+    Priority: question keywords checked FIRST to avoid false casual hits.
+    Returns dict with intent, confidence, reason, method.
+    """
+    utterance = utterance.strip().lower()
+
+    if not utterance or len(utterance.split()) < 2:
+        return {"intent": "casual", "confidence": 0.9,
+                "reason": "too short to be a question", "method": "keyword"}
+
+    # Question keywords checked FIRST â€” higher specificity
+    for kw in QUESTION_KEYWORDS:
+        if kw in utterance:
+            return {
+                "intent":     "question",
+                "confidence": 0.85,
+                "reason":     f"question keyword '{kw}' detected",
+                "method":     "keyword",
+            }
+
+    # Ends with question mark?
+    if utterance.rstrip().endswith("?"):
+        return {
+            "intent":     "question",
+            "confidence": 0.90,
+            "reason":     "utterance ends with question mark",
+            "method":     "keyword",
+        }
+
+    # Casual keywords second â€” only if no question keyword found
+    for kw in CASUAL_KEYWORDS:
+        if kw in utterance:
+            return {
+                "intent":     "casual",
+                "confidence": 0.75,
+                "reason":     f"casual keyword '{kw}' detected",
+                "method":     "keyword",
+            }
+
+    # Default: treat as question â€” give student benefit of the doubt
+    return {
+        "intent":     "question",
+        "confidence": 0.50,
+        "reason":     "no clear signal â€” defaulting to question",
+        "method":     "keyword",
+    }
+
+
 
 # ---------------------------------------------------------------------------
 # Prompt: Answer Quality Scoring
@@ -119,7 +174,7 @@ class LLMAnswerScorer:
             return False
 
     # ------------------------------------------------------------------
-    # STEP 1 — Intent Classification
+    # STEP 1 â€” Intent Classification
     # ------------------------------------------------------------------
 
     def classify_intent(self, utterance: str) -> dict:
@@ -192,7 +247,7 @@ class LLMAnswerScorer:
                 intent = "question"   # default to question on ambiguity
 
             logger.info(
-                "LLMIntent: '%s' → %s (conf=%.2f) | %s | %.2fs",
+                "LLMIntent: '%s' â†’ %s (conf=%.2f) | %s | %.2fs",
                 utterance[:50], intent, confidence, reason, latency
             )
             return {
@@ -212,12 +267,12 @@ class LLMAnswerScorer:
         Keyword-based intent classification fallback.
 
         Logic:
-          1. If ANY casual keyword found → casual
-          2. If ANY question keyword found → question
-          3. If utterance ends with '?' → question
-          4. Default → question (give student benefit of doubt)
+          1. If ANY casual keyword found â†’ casual
+          2. If ANY question keyword found â†’ question
+          3. If utterance ends with '?' â†’ question
+          4. Default â†’ question (give student benefit of doubt)
         """
-        # Check casual FIRST — more specific, avoids false positives
+        # Check casual FIRST â€” more specific, avoids false positives
         for kw in CASUAL_KEYWORDS:
             if kw in utterance:
                 return {
@@ -250,7 +305,7 @@ class LLMAnswerScorer:
         return {
             "intent":     "question",
             "confidence": 0.50,
-            "reason":     "no clear signal — defaulting to question",
+            "reason":     "no clear signal â€” defaulting to question",
             "method":     "keyword",
         }
 

@@ -73,7 +73,7 @@ class Settings(BaseSettings):
 
     # ── Ollama Local LLM (Phase 4) ────────────────────────────────────────
     ollama_url:     str  = "http://localhost:11434"
-    ollama_model:   str  = "phi3.5:mini"
+    ollama_model:   str  = "phi3.5"
     ollama_enabled: bool = True              # set False to use keyword fallback only
     ollama_timeout_s: int = 15               # max seconds to wait for LLM response
 
@@ -91,6 +91,7 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     cors_origins: list[str] = ["http://localhost:3000"]
+    secret_key: str = "classmon-super-secret-jwt-key-change-in-production"
     ws_broadcast_interval_ms: int = 500      # push telemetry every 500 ms
 
     # ── Confidence / Uncertainty ─────────────────────────────────────────

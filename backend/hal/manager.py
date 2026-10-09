@@ -190,6 +190,7 @@ class AudioSourceManager:
     def _capture_loop(self):
         while self._running:
             chunk = self._source.read_chunk()
+            if chunk is not None: print(f"Captured chunk: {chunk.chunk_id}")
             if chunk is None:
                 time.sleep(0.005)
                 continue

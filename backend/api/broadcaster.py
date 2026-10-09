@@ -115,6 +115,18 @@ async def broadcast_loop():
             snapshot = pipeline_state.snapshot()
             snapshot["type"]      = "telemetry"
             snapshot["timestamp"] = datetime.now(timezone.utc).isoformat()
+            
+            # Auto-pause DB logging on collective alert
+            if snapshot.get('collective_alert') and not snapshot.get('is_paused'):
+                from db.session import AsyncSessionLocal
+                from db import crud
+                async with AsyncSessionLocal() as db:
+                    await crud.start_intermission(
+                        db, session_id=snapshot["session_id"], trigger_type="AUTO_COLLECTIVE_ANOMALY"
+                    )
+                pipeline_state.set_paused(True)
+                snapshot["is_paused"] = True
+                
             await manager.broadcast(snapshot)
         except Exception as e:
             logger.warning("WebSocket: Broadcast error: %s", e)

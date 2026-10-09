@@ -32,14 +32,19 @@ export function Registration() {
     if (!rollNo || !name) return
     setStatus({ type: 'info', msg: 'Capturing photo & registering...' })
 
+    const token = localStorage.getItem('token')
+    const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+
     try {
       // 1. Create student record
       const sRes = await fetch('/api/students', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify({ roll_no: parseInt(rollNo), name, class_div: classDiv })
       })
-      if (!sRes.ok) throw new Error('Failed to create student record. Roll number might already exist.')
+      if (!sRes.ok && sRes.status !== 400) {
+          throw new Error('Failed to create student record. Roll number might already exist.')
+      }
 
       // 2. Capture frame from video
       const video = videoRef.current
@@ -55,7 +60,7 @@ export function Registration() {
       // 3. Send face registration
       const fRes = await fetch(`/api/students/${rollNo}/face`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify({ image_base64: base64Image })
       })
       

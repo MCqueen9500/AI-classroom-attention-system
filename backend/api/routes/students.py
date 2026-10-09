@@ -163,3 +163,52 @@ async def get_all_embeddings(db: AsyncSession = Depends(get_db)):
         if s.face_embedding is not None:
             result[s.roll_no] = s.face_embedding
     return result
+
+
+# ---------------------------------------------------------------------------
+# Student History — all sessions + score for one student
+# ---------------------------------------------------------------------------
+
+@router.get("/{roll_no}/history")
+async def get_student_history(roll_no: int, db: AsyncSession = Depends(get_db)):
+    from db.models import VisualAttentionLog, Session as SessionModel
+    from sqlalchemy import select
+
+    student = await crud.get_student_by_roll(db, roll_no)
+    if not student:
+        raise HTTPException(404, "Student not found")
+
+    result = await db.execute(
+        select(VisualAttentionLog.session_id).distinct().where(
+            VisualAttentionLog.roll_no == roll_no
+        )
+    )
+    session_ids = [s for (s,) in result.fetchall()]
+
+    history = []
+    for sid in session_ids:
+        try:
+            sess_result = await db.execute(
+                select(SessionModel).where(SessionModel.session_id == sid)
+            )
+            sess = sess_result.scalar_one_or_none()
+            score_data = await crud.calculate_student_final_score(db, sid, roll_no)
+            history.append({
+                "session_id": sid,
+                "subject_name": sess.subject_name if sess else "Unknown",
+                "scheduled_start": sess.scheduled_start.isoformat() if sess else "",
+                "is_active": sess.is_active if sess else False,
+                **score_data,
+            })
+        except Exception:
+            pass
+
+    history.sort(key=lambda x: x.get("scheduled_start", ""), reverse=True)
+
+    return {
+        "roll_no": roll_no,
+        "name": student.name,
+        "class_div": student.class_div,
+        "session_count": len(history),
+        "history": history,
+    }

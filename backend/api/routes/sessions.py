@@ -3,8 +3,8 @@ backend/api/routes/sessions.py
 ================================
 REST endpoints for session management.
 
-GET    /api/sessions            → list all sessions
-POST   /api/sessions            → create new session
+GET    /api/sessions            → list sessions (filtered by teacher if not admin)
+POST   /api/sessions            → create new session (stamps teacher_id from JWT)
 GET    /api/sessions/{id}       → get session detail
 PATCH  /api/sessions/{id}/pause  → pause (log intermission)
 PATCH  /api/sessions/{id}/resume → resume session
@@ -16,11 +16,15 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import settings
 from db.session import get_db
 from db import crud
+from db.models import Teacher, Session as SessionModel
 from api.schemas import (
     SessionCreate, SessionResponse,
     AttentionHistoryResponse, AttentionPoint,
@@ -31,38 +35,94 @@ from api.pipeline_state import pipeline_state
 logger  = logging.getLogger(__name__)
 router  = APIRouter(prefix="/api/sessions", tags=["Sessions"])
 
+_JWT_ALGORITHM = "HS256"
+
+
+# ── JWT helper ────────────────────────────────────────────────────────────────
+
+async def _get_teacher_from_request(
+    request: Request, db: AsyncSession
+) -> Optional[Teacher]:
+    """
+    Attempt to resolve the logged-in teacher from the Authorization header.
+    Returns None if the header is absent or the token is invalid (permissive —
+    callers decide how to handle None).
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    raw_token = auth_header[len("Bearer "):]
+    try:
+        payload = jwt.decode(raw_token, settings.secret_key, algorithms=[_JWT_ALGORITHM])
+    except jwt.InvalidTokenError:
+        return None
+
+    teacher_id = int(payload.get("sub", 0))
+    result = await db.execute(select(Teacher).where(Teacher.id == teacher_id))
+    return result.scalars().first()
+
 
 # ---------------------------------------------------------------------------
 # List & Create Sessions
 # ---------------------------------------------------------------------------
 
 @router.get("", response_model=List[SessionResponse])
-async def list_sessions(db: AsyncSession = Depends(get_db)):
-    """List all sessions (most recent first)."""
+async def list_sessions(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    List sessions.
+    - Admin teachers → all sessions returned.
+    - Regular teachers → only sessions where teacher_id matches their own ID.
+    """
+    teacher = await _get_teacher_from_request(request, db)
+
+    if teacher and not teacher.is_admin:
+        # Filter to this teacher's own sessions only
+        result = await db.execute(
+            select(SessionModel)
+            .where(SessionModel.teacher_id == teacher.id)
+            .order_by(SessionModel.scheduled_start.desc())
+        )
+        sessions = result.scalars().all()
+        return sessions
+
+    # Admin or unauthenticated (legacy) — return all
     sessions = await crud.list_sessions(db)
     return sessions
 
 
 @router.post("", response_model=SessionResponse, status_code=201)
-async def create_session(body: SessionCreate, db: AsyncSession = Depends(get_db)):
-    """Create a new monitoring session."""
+async def create_session(body: SessionCreate, request: Request, db: AsyncSession = Depends(get_db)):
+    """Create a new monitoring session. Stamps teacher_id from the caller's JWT."""
+    teacher = await _get_teacher_from_request(request, db)
+    teacher_id: Optional[int] = teacher.id if teacher else None
+
     session = await crud.create_session(
         db,
         subject_name=body.subject_name,
         scheduled_start=body.scheduled_start,
         scheduled_end=body.scheduled_end,
+        teacher_name=body.teacher_name,
+        class_div=body.class_div,
+        room_no=body.room_no,
+        teacher_id=teacher_id,
     )
     pipeline_state.set_session(str(session.session_id))
-    logger.info("Session created: %s — %s", session.session_id, session.subject_name)
+    pipeline_state.set_class_div(body.class_div)
+    logger.info(
+        "Session created: %s — %s (Div %s) by teacher_id=%s",
+        session.session_id, session.subject_name, session.class_div, teacher_id,
+    )
     return session
+
+
+
 
 
 @router.get("/active", response_model=Optional[SessionResponse])
 async def get_active_session(db: AsyncSession = Depends(get_db)):
     """Get the currently active session (is_active=True)."""
     session = await crud.get_active_session(db)
-    if not session:
-        raise HTTPException(status_code=404, detail="No active session found")
+    # Return None instead of 404 so the frontend doesn't show an error banner
     return session
 
 
@@ -146,7 +206,7 @@ async def get_attention_history(
     points = [
         AttentionPoint(
             timestamp=log.timestamp.isoformat(),
-            attention_avg=round(log.attention_score or log.head_pose_score, 3),
+            attention_avg=round(log.instantaneous_score, 3),
             face_count=1,
         )
         for log in raw_logs
@@ -172,7 +232,7 @@ async def get_qa_interactions(
     interactions = await crud.get_qa_interactions(db, session_id=session_id)
     return [
         QAInteractionResponse(
-            interaction_id=i.id,
+            interaction_id=i.interaction_id,
             roll_no=i.roll_no,
             question_text=getattr(i, "question_text", None),
             student_responded=i.student_responded,
@@ -182,3 +242,90 @@ async def get_qa_interactions(
         )
         for i in interactions
     ]
+
+
+# ---------------------------------------------------------------------------
+# Session Scores — Full student score table for Analytics page
+# ---------------------------------------------------------------------------
+
+@router.get("/{session_id}/scores")
+async def get_session_scores(session_id: str, db: AsyncSession = Depends(get_db)):
+    from db.models import VisualAttentionLog
+    from sqlalchemy import select, func
+
+    session = await crud.get_session_by_id(db, session_id)
+    if not session:
+        raise HTTPException(404, "Session not found")
+
+    result = await db.execute(
+        select(VisualAttentionLog.roll_no).distinct().where(
+            VisualAttentionLog.session_id == session_id
+        )
+    )
+    roll_numbers = sorted([r for (r,) in result.fetchall()])
+
+    scores = []
+    for roll_no in roll_numbers:
+        try:
+            score_data = await crud.calculate_student_final_score(db, session_id, roll_no)
+            student = await crud.get_student_by_roll(db, roll_no)
+            score_data["name"] = student.name if student else f"Roll {roll_no}"
+            scores.append(score_data)
+        except Exception as exc:
+            logger.warning("Score calc failed for roll %d: %s", roll_no, exc)
+
+    return {
+        "session_id": session_id,
+        "subject_name": session.subject_name,
+        "scheduled_start": session.scheduled_start.isoformat(),
+        "student_count": len(scores),
+        "scores": scores,
+    }
+
+@router.patch("/{session_id}/end", response_model=SessionResponse)
+async def end_session(session_id: str, db: AsyncSession = Depends(get_db)):
+    """End an active session."""
+    session = await crud.end_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    # Reset pipeline state
+    pipeline_state.set_session("")
+    return session
+
+@router.get("/{session_id}/attendance")
+async def get_session_attendance(session_id: str, db: AsyncSession = Depends(get_db)):
+    """
+    Returns attendance list for a session.
+    Combines all students in the session's class_div with their attendance status.
+    """
+    from db.models import AttendanceRecord, Student
+    from sqlalchemy import select
+    
+    session = await crud.get_session_by_id(db, session_id)
+    if not session:
+        raise HTTPException(404, 'Session not found')
+    
+    # Get all attendance records for this session
+    att_result = await db.execute(
+        select(AttendanceRecord).where(AttendanceRecord.session_id == session_id)
+    )
+    att_records = {r.roll_no: r for r in att_result.scalars().all()}
+    
+    # Get all students in this division
+    std_result = await db.execute(
+        select(Student).where(Student.class_div == session.class_div).order_by(Student.roll_no)
+    )
+    students = std_result.scalars().all()
+    
+    result = []
+    for s in students:
+        rec = att_records.get(s.roll_no)
+        result.append({
+            'roll_no': s.roll_no,
+            'name': s.name,
+            'status': rec.status if rec else 'Absent',
+            'punctuality_score': rec.punctuality_score if rec else 0.0,
+            'entry_timestamp': rec.entry_timestamp.isoformat() if rec and rec.entry_timestamp else None,
+        })
+    
+    return result

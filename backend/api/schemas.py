@@ -71,18 +71,25 @@ class AlertMessage(BaseModel):
 
 class SessionCreate(BaseModel):
     subject_name:    str
+    teacher_name:    str = "Teacher"
+    class_div:       str = "A"
+    room_no:         str = "101"
     scheduled_start: datetime
     scheduled_end:   datetime
 
 class SessionResponse(BaseModel):
     session_id:      str
     subject_name:    str
+    teacher_name:    str = "Teacher"
+    class_div:       str = "A"
+    room_no:         str = "101"
     scheduled_start: datetime
     scheduled_end:   datetime
     is_active:       bool
 
     class Config:
         from_attributes = True
+
 
 
 # ---------------------------------------------------------------------------

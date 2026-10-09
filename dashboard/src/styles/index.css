@@ -2,6 +2,7 @@
    ClassMon Teacher Dashboard — Dark theme, professional */
 
 :root {
+  /* Core palette */
   --bg:        #0f1117;
   --surface:   #1a1d27;
   --surface2:  #22263a;
@@ -14,6 +15,12 @@
   --text-dim:  #64748b;
   --radius:    10px;
   --shadow:    0 2px 12px rgba(0,0,0,.45);
+
+  /* Aliases — new components use these names */
+  --bg-dark:    #0f1117;
+  --card-bg:    #1a1d27;
+  --bg-card:    #1a1d27;
+  --text-muted: #64748b;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -224,3 +231,45 @@ aside.app-sidebar {
   font-size: 14px; width: 100%;
 }
 .modal input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+/* ── New Layout Additions ────────────────────────────── */
+.app-sidebar-nav {
+  width: 220px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-link {
+  display: block;
+  padding: 12px 24px;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+  transition: all 0.2s;
+}
+.nav-link:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+.nav-link.active {
+  color: var(--accent);
+  background: rgba(79, 142, 247, 0.1);
+  border-left-color: var(--accent);
+}
+
+.page-container {
+  padding: 32px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  color: #fff;
+}

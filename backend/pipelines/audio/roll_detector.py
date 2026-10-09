@@ -1,13 +1,15 @@
-"""
+﻿"""
 pipelines/audio/roll_detector.py
 ===================================
 Detects which student the teacher is addressing from transcribed text.
 
 Handles patterns like:
-  "roll number 14 explain the EAR formula"   → roll=14, q="explain the EAR formula"
-  "roll 7 what is solvePnP"                  → roll=7,  q="what is solvePnP"
-  "krushna tell me formula 3"                → looks up name in student DB → roll
-  "student number 22 what is yaw"            → roll=22, q="what is yaw"
+  "roll number 14 explain the EAR formula"   -> roll=14, q="explain the EAR formula"
+  "roll 7 what is solvePnP"                  -> roll=7,  q="what is solvePnP"
+  "krushna tell me formula 3"                -> looks up name in student DB -> roll
+  "student number 22 what is yaw"            -> roll=22, q="what is yaw"
+  "role 5 what is EAR"                       -> roll=5,  q="what is EAR"  (Whisper mishear)
+  "rule number 12 explain"                   -> roll=12  (Whisper mishear)
 
 Returns: (roll_no, question_text) or (None, None) if no student addressed.
 """
@@ -22,14 +24,25 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Regex patterns for roll number detection (order = priority)
 # ---------------------------------------------------------------------------
+
+# Primary pattern: covers Whisper misspellings of "roll"
+#   roll / role / rule / rall / rol  followed by optional no./number/num/#
+#   then the digit(s).
 ROLL_PATTERNS = [
-    r"roll\s*(?:number|no|num|#)?\s*(\d{1,3})",   # roll 14, roll number 14
-    r"student\s*(?:number|no)?\s*(\d{1,3})",        # student 14, student number 14
-    r"number\s*(\d{1,3})\s",                         # number 14 [question]
-    r"r\.?\s*n\.?\s*o?\.?\s*(\d{1,3})",             # r.n.o 14, rno 14
+    # REPAIR 3A -- broadened pattern for common Whisper misspellings
+    r"(?i)(?:roll|role|rule|rall|rol)\s*(?:no\.?|number|num|#)?\s*(\d+)",
+
+    # Secondary: explicit "student" prefix
+    r"(?i)student\s*(?:no\.?|number|num|#)?\s*(\d+)",
+
+    # Tertiary: bare "number N" in isolation  (keep original)
+    r"(?i)number\s*(\d+)\s",
+
+    # Quaternary: abbreviated r.n.o / rno  (keep original)
+    r"(?i)r\.?\s*n\.?\s*o?\.?\s*(\d+)",
 ]
 
-# Teacher question keywords — if these follow the roll number, it's a question
+# Teacher question keywords -- if these follow the roll number, it is a question
 QUESTION_KEYWORDS = [
     "what", "how", "why", "explain", "tell", "define",
     "describe", "calculate", "give", "state", "list",
@@ -50,7 +63,7 @@ class RollDetector:
                             loaded from DB at pipeline start
         """
         self._students = known_students or []
-        # Build name → roll_no lookup (lowercase)
+        # Build name -> roll_no lookup (lowercase)
         self._name_map = {
             s["name"].lower(): s["roll_no"]
             for s in self._students
@@ -70,19 +83,33 @@ class RollDetector:
         Parse transcribed text to find addressed student + question.
 
         Args:
-            text: lowercase transcribed text from Whisper
+            text: transcribed text from Whisper (may be mixed case)
         Returns:
             (roll_no, question_text) or (None, None)
         """
-        text = text.lower().strip()
+        text_stripped = text.strip()
 
-        # 1. Try regex roll number patterns
-        roll_no, question = self._detect_by_roll_pattern(text)
+        # 1. Try regex roll number patterns (case-insensitive flags in patterns)
+        roll_no, question = self._detect_by_roll_pattern(text_stripped)
+
+        # REPAIR 3A -- log every transcription with detection result
+        logger.debug(
+            "RollDetector: transcribed='%s' detected_roll=%s",
+            text_stripped, roll_no
+        )
+
         if roll_no is not None:
             return roll_no, question
 
-        # 2. Try student name matching
-        roll_no, question = self._detect_by_name(text)
+        # 2. Try student name matching (use lowercased text)
+        roll_no, question = self._detect_by_name(text_stripped.lower())
+
+        # Log again after name-based detection attempt
+        logger.debug(
+            "RollDetector: transcribed='%s' detected_roll=%s",
+            text_stripped, roll_no
+        )
+
         if roll_no is not None:
             return roll_no, question
 
@@ -114,7 +141,7 @@ class RollDetector:
                 question = text[idx:].strip()
                 question = self._clean_question(question)
                 logger.info(
-                    "RollDetector: Name '%s' → Roll %d | Q: '%s'",
+                    "RollDetector: Name '%s' -> Roll %d | Q: '%s'",
                     name, roll_no, question
                 )
                 return roll_no, question

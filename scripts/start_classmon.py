@@ -1,20 +1,26 @@
 """
 scripts/start_classmon.py
 ===========================
-Master start script for the Classroom Attention Monitor.
+REPAIR 5A — Edge-only launcher for the Audio pipeline.
 
-This script boots everything in one go:
-  1. FastAPI Server (REST + WebSocket) on port 8000
-  2. Vision Pipeline (Webcam face tracking)
-  3. Audio Pipeline (Microphone Q&A tracking)
+The API server is now managed separately via run_server.py.
+Run it first in a dedicated terminal:
+
+    python run_server.py          ← Terminal 1 (API server)
+    python scripts/start_classmon.py  ← Terminal 2 (Audio edge pipeline)
+
+This script:
+  1. Reads CLASSMON_API_URL from the environment (default: http://localhost:8000)
+  2. Health-checks the API (up to 10 retries, 2s apart) before proceeding
+  3. Launches the Audio Pipeline on the main thread
 
 Usage:
   cd classroom-attention-monitor
-  .venv\Scripts\activate
+  .venv\\Scripts\\activate
   python scripts/start_classmon.py
 """
 
-import sys, os, time, threading, logging, uvicorn
+import sys, os, time, logging, requests
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "backend"))
@@ -28,29 +34,44 @@ setup_logging()
 logger = logging.getLogger("startup")
 
 # ---------------------------------------------------------------------------
-# Worker 1: FastAPI Server
+# REPAIR 5A: Cloud/Edge separation — API base URL from environment
 # ---------------------------------------------------------------------------
-def start_api():
-    logger.info("Starting FastAPI server on %s:%s...", settings.api_host, settings.api_port)
-    uvicorn.run(
-        "api.app:app",
-        host=settings.api_host,
-        port=settings.api_port,
-        reload=False,
-        log_level=settings.log_level.lower(),
-        app_dir=os.path.join(ROOT, "backend"),
-    )
+API_BASE = os.getenv("CLASSMON_API_URL", "http://localhost:8000")
+
+print("TIP: Run 'python run_server.py' in a SEPARATE terminal first.")
 
 # ---------------------------------------------------------------------------
-# Worker 2: Audio Pipeline
+# Health check: wait for the API to become reachable
+# ---------------------------------------------------------------------------
+def wait_for_api(base_url: str, retries: int = 10, delay: float = 2.0) -> bool:
+    """
+    Poll GET /health up to *retries* times with *delay* seconds between attempts.
+    Returns True if reachable, False otherwise.
+    """
+    health_url = f"{base_url}/health"
+    for attempt in range(1, retries + 1):
+        try:
+            r = requests.get(health_url, timeout=3)
+            if r.status_code == 200:
+                logger.info("API is reachable at %s (attempt %d/%d)", base_url, attempt, retries)
+                return True
+        except Exception:
+            pass
+        logger.warning(
+            "API not reachable yet at %s — attempt %d/%d. Retrying in %.0fs...",
+            base_url, attempt, retries, delay,
+        )
+        time.sleep(delay)
+    return False
+
+# ---------------------------------------------------------------------------
+# Worker: Audio Pipeline
 # ---------------------------------------------------------------------------
 def start_audio():
-    # Only import if needed to save time
     from pipelines.audio.audio_pipeline import AudioPipeline
     from db.session import AsyncSessionLocal
     import asyncio
-    
-    # Needs session_id from DB
+
     from db.crud import get_active_session, create_session
     from datetime import datetime, timedelta
 
@@ -65,11 +86,16 @@ def start_audio():
     asyncio.set_event_loop(loop)
     session_id = loop.run_until_complete(get_or_create_session())
     pipeline_state.set_session(session_id)
+
+    logger.info("Starting Audio Pipeline (api_base_url=%s)...", API_BASE)
+    from hal.manager import AudioSourceManager
+    from hal.audio_source import MicrophoneAudioSource
+    audio_mgr = AudioSourceManager(source=MicrophoneAudioSource())
+    audio_mgr.start()  # BUG FIX: Actually start the microphone thread!
     
-    logger.info("Starting Audio Pipeline...")
-    audio = AudioPipeline(session_id=session_id)
+    audio = AudioPipeline(audio_manager=audio_mgr, session_id=session_id, api_base_url=API_BASE)
     audio.start()
-    
+
     try:
         while True:
             time.sleep(1)
@@ -81,26 +107,20 @@ def start_audio():
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     print("=" * 60)
-    print("  🚀 Starting ClassMon Multi-modal System")
+    print("  ClassMon Audio Edge Pipeline")
+    print(f"  API base: {API_BASE}")
     print("=" * 60)
-    
-    # Note: Vision pipeline isn't integrated yet into this launcher,
-    # as it requires main thread for OpenCV cv2.imshow
-    # The user can just run scripts/run_server.py and scripts/run_full_pipeline.py separately for now.
 
-    # Start API in background thread (or foreground if on cloud)
-    if os.environ.get("RENDER"):
-        print("☁️ Detected Render cloud environment. Skipping local Audio/Vision edge pipelines.")
-        start_api()
-    else:
-        api_thread = threading.Thread(target=start_api, daemon=True)
-        api_thread.start()
-        
-        # Wait for API to boot
-        time.sleep(2)
-        
-        try:
-            print("\nPress Ctrl+C to stop.\n")
-            start_audio()
-        except KeyboardInterrupt:
-            print("\nShutting down...")
+    # Verify API is up before doing anything
+    if not wait_for_api(API_BASE):
+        print(
+            f"\nERROR: ClassMon API not reachable at {API_BASE} after 10 attempts.\n"
+            "Make sure 'python run_server.py' is running in another terminal.\n"
+        )
+        sys.exit(1)
+
+    try:
+        print("\nPress Ctrl+C to stop.\n")
+        start_audio()
+    except KeyboardInterrupt:
+        print("\nShutting down...")

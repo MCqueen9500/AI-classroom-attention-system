@@ -38,6 +38,9 @@ class Teacher(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     password_hash = Column(String(100), nullable=False)
     name = Column(String(100), nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)
+    subject = Column(String(100), nullable=True)    # subject they teach
+    division = Column(String(10), nullable=True)    # class division e.g. 'A', 'B'
 
 
 # ---------------------------------------------------------------------------
@@ -66,20 +69,26 @@ class Student(Base):
 class Session(Base):
     __tablename__ = "sessions"
 
-    session_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    subject_name = Column(String(100), nullable=False)
+    session_id      = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    subject_name    = Column(String(100), nullable=False)
+    teacher_name    = Column(String(100), nullable=False, default="Teacher")
+    class_div       = Column(String(20),  nullable=False, default="A")
+    room_no         = Column(String(20),  nullable=False, default="101")
     scheduled_start = Column(DateTime, nullable=False, default=datetime.utcnow)
-    scheduled_end = Column(DateTime, nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
+    scheduled_end   = Column(DateTime, nullable=False)
+    is_active       = Column(Boolean, default=True, nullable=False)
+    teacher_id      = Column(Integer, ForeignKey("teachers.id"), nullable=True)  # session ownership
 
     # Relationships
+    teacher            = relationship("Teacher", foreign_keys=[teacher_id])
     attendance_records = relationship("AttendanceRecord", back_populates="session", cascade="all, delete-orphan")
-    attention_logs = relationship("VisualAttentionLog", back_populates="session", cascade="all, delete-orphan")
-    qa_interactions = relationship("QAInteraction", back_populates="session", cascade="all, delete-orphan")
-    intermissions = relationship("SessionIntermission", back_populates="session", cascade="all, delete-orphan")
+    attention_logs     = relationship("VisualAttentionLog", back_populates="session", cascade="all, delete-orphan")
+    qa_interactions    = relationship("QAInteraction", back_populates="session", cascade="all, delete-orphan")
+    intermissions      = relationship("SessionIntermission", back_populates="session", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<Session(id='{self.session_id}', subject='{self.subject_name}', active={self.is_active})>"
+        return f"<Session(id='{self.session_id}', subject='{self.subject_name}', div='{self.class_div}', active={self.is_active})>"
+
 
 
 # ---------------------------------------------------------------------------
@@ -120,6 +129,7 @@ class VisualAttentionLog(Base):
     posture_score = Column(Float, nullable=False)          # P_i
     instantaneous_score = Column(Float, nullable=False)    # A_i(t) = 0.3*H + 0.5*G + 0.2*P
     confidence = Column(Float, nullable=False, default=1.0) # Vision pipeline tracking confidence (0.0 - 1.0)
+    mar = Column(Float, nullable=True)  # Mouth Aspect Ratio for lip-sync verification
 
     session = relationship("Session", back_populates="attention_logs")
     student = relationship("Student", back_populates="attention_logs")
@@ -139,9 +149,12 @@ class QAInteraction(Base):
     session_id = Column(String(36), ForeignKey("sessions.session_id", ondelete="CASCADE"), nullable=False, index=True)
     roll_no = Column(Integer, ForeignKey("students.roll_no", ondelete="CASCADE"), nullable=False, index=True)
     question_timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
+    question_text = Column(String(500), nullable=True)   # what the teacher asked
     teacher_interrupted = Column(Boolean, nullable=False, default=False)
     student_responded = Column(Boolean, nullable=False, default=False)
-    qa_score = Column(Float, nullable=False, default=1.0)  # Q_i: 1.0 = responded/interrupted safeguard, 0.0 = no response in 15s
+    qa_score = Column(Float, nullable=False, default=1.0)  # Q_i: LLM or binary score
+    student_response_text = Column(String(1000), nullable=True)
+    llm_feedback = Column(String(500), nullable=True)
 
     session = relationship("Session", back_populates="qa_interactions")
     student = relationship("Student", back_populates="qa_interactions")

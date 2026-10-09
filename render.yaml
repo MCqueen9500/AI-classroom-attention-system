@@ -2,8 +2,10 @@ services:
   - type: web
     name: classmon-api
     env: python
-    buildCommand: "cd dashboard && npm install && npm run build && cd .. && pip install -r requirements.txt && python scripts/download_models.py"
+    buildCommand: "cd dashboard && npm install && npm run build && cd .. && pip install -r requirements.txt"
     startCommand: "cd backend && uvicorn api.app:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PORT
-        value: 8000
+        value: 10000
+      - key: CLASSMON_API_URL
+        value: https://classmon-api.onrender.com

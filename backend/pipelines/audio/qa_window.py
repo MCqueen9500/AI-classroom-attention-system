@@ -151,6 +151,18 @@ class QAWindowManager:
             return
 
         elapsed = time.time() - self._open_ts
+        remaining = self._duration - elapsed
+
+        # Periodically push remaining seconds to dashboard (every ~1s)
+        if int(remaining) != getattr(self, '_last_pushed_second', -1):
+            self._last_pushed_second = int(remaining)
+            self._push_telemetry(
+                active=True,
+                roll=self._record.roll_no if self._record else None,
+                question=self._record.question_text if self._record else None,
+                seconds=max(0.0, remaining),
+            )
+
         if elapsed >= self._duration:
             self._record.Q_i          = 0.0
             self._record.score_reason = f"no response in {self._duration:.0f}s"
@@ -161,6 +173,24 @@ class QAWindowManager:
                 self._record.roll_no
             )
             self._close()
+
+    def _push_telemetry(self, active: bool, roll=None, question=None, seconds=0.0):
+        """Fire-and-forget HTTP push to dashboard."""
+        import threading
+        import requests as req
+        def _post():
+            try:
+                req.post(
+                    "http://localhost:8000/api/telemetry/audio",
+                    json={"qa_active": active, "qa_asked_roll": roll,
+                          "qa_question": question, "qa_seconds": seconds},
+                    timeout=1,
+                )
+            except Exception:
+                pass
+        threading.Thread(target=_post, daemon=True).start()
+
+
 
     @property
     def state(self) -> WindowState:
@@ -217,6 +247,9 @@ class QAWindowManager:
                 self._on_complete(record)
             except Exception as e:
                 logger.warning("QAWindow: on_complete callback error: %s", e)
+
+        # Clear Q&A panel on dashboard
+        self._push_telemetry(active=False)
 
         self._state  = WindowState.IDLE
         self._record = None

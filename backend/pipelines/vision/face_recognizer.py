@@ -58,10 +58,14 @@ class FaceRecognizer:
             # SFace recommends Cosine distance threshold 0.363.
             # Actually match() returns a score, but we can compute cosine distance manually for clarity:
             
-            # manual cosine distance = 1.0 - (dot(a, b) / (norm(a)*norm(b)))
-            # since features are L2-normalized internally by SFace, dot(a,b) is cosine sim.
-            score = np.dot(embedding, known_emb)
-            dist = 1.0 - score
+            # Compute true cosine distance
+            norm_a = np.linalg.norm(embedding)
+            norm_b = np.linalg.norm(known_emb)
+            if norm_a == 0 or norm_b == 0:
+                dist = 1.0
+            else:
+                score = np.dot(embedding, known_emb) / (norm_a * norm_b)
+                dist = 1.0 - score
             
             if dist < min_dist:
                 min_dist = dist

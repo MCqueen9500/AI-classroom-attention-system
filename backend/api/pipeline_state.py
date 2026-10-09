@@ -28,6 +28,8 @@ class LiveFaceState:
     is_speaking: bool = False
     confidence: float = 0.0
     bbox:       List[int] = field(default_factory=lambda: [0, 0, 0, 0])
+    mar:        float = 0.0   # REPAIR 4: Mouth Aspect Ratio for lip-sync check
+
 
 
 @dataclass
@@ -60,6 +62,13 @@ class PipelineState:
         self._qa:                  LiveQAState    = LiveQAState()
         self._alerts:              List[str]      = []
         self._last_update:         float          = time.time()
+        
+        # Collective Inattention State
+        self._collective_distracted_since: float = 0.0
+        self._collective_alert_active:     bool  = False
+        
+        # Session metadata
+        self._class_div: str = ""
 
     # ------------------------------------------------------------------
     # Write methods (called by pipelines)
@@ -68,6 +77,11 @@ class PipelineState:
     def set_session(self, session_id: str):
         with self._lock:
             self._session_id = session_id
+
+    def set_class_div(self, class_div: str):
+        with self._lock:
+            self._class_div = class_div
+
 
     def update_faces(
         self,
@@ -78,6 +92,20 @@ class PipelineState:
             self._faces               = faces
             self._class_attention_pct = class_attention_pct
             self._last_update         = time.time()
+            
+            # Collective Inattention tracking
+            if self._is_paused:
+                self._collective_distracted_since = 0.0
+                self._collective_alert_active = False
+            else:
+                if len(faces) > 0 and class_attention_pct < 15.0: # (85% distracted)
+                    if self._collective_distracted_since == 0.0:
+                        self._collective_distracted_since = time.time()
+                    elif time.time() - self._collective_distracted_since >= 90.0:
+                        self._collective_alert_active = True
+                else:
+                    self._collective_distracted_since = 0.0
+                    self._collective_alert_active = False
 
     def update_qa_window(self, qa: LiveQAState):
         with self._lock:
@@ -110,9 +138,11 @@ class PipelineState:
 
             return {
                 "session_id":          self._session_id,
+                "class_div":           self._class_div,
                 "class_attention_pct": round(self._class_attention_pct, 2),
                 "face_count":          len(self._faces),
                 "is_paused":           self._is_paused,
+
                 "faces": [
                     {
                         "roll_no":     f.roll_no,
@@ -125,6 +155,7 @@ class PipelineState:
                         "is_speaking": f.is_speaking,
                         "confidence":  round(f.confidence, 3),
                         "bbox":        f.bbox,
+                        "mar":         round(f.mar, 4),   # REPAIR 4
                     }
                     for f in self._faces
                 ],
@@ -136,9 +167,37 @@ class PipelineState:
                     "speaker_roll":      self._qa.speaker_roll,
                     "wrong_student":     self._qa.wrong_student,
                 },
+                "collective_alert": self._collective_alert_active,
                 "alerts": alerts,
+            }
+
+    def to_dict(self) -> dict:
+        """
+        REPAIR 4: Non-destructive state read for edge pipeline MAR queries.
+        Unlike snapshot(), this does NOT consume the alerts buffer.
+        """
+        with self._lock:
+            return {
+                "session_id":          self._session_id,
+                "class_attention_pct": round(self._class_attention_pct, 2),
+                "face_count":          len(self._faces),
+                "faces": [
+                    {
+                        "roll_no":     f.roll_no,
+                        "slot":        f.slot,
+                        "a_i":         round(f.a_i, 3),
+                        "is_speaking": f.is_speaking,
+                        "mar":         round(f.mar, 4),
+                    }
+                    for f in self._faces
+                ],
+                "qa_window": {
+                    "active":     self._qa.active,
+                    "asked_roll": self._qa.asked_roll,
+                },
             }
 
 
 # Singleton — import this everywhere
 pipeline_state = PipelineState()
+

@@ -153,10 +153,16 @@ def build_face_detector(
     mp_model   = os.path.join(_MODELS_DIR, "blaze_face_short_range.tflite")
     yunet_model = os.path.join(_MODELS_DIR, "face_detection_yunet_2023mar.onnx")
 
-    tiers = [
-        ("mediapipe_tasks", mp_model),
-        ("yunet",           yunet_model),
-    ]
+    if prefer == "yunet":
+        tiers = [
+            ("yunet",           yunet_model),
+            ("mediapipe_tasks", mp_model),
+        ]
+    else:
+        tiers = [
+            ("mediapipe_tasks", mp_model),
+            ("yunet",           yunet_model),
+        ]
 
     for tier_name, model_path in tiers:
         if not os.path.exists(model_path):

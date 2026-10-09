@@ -16,6 +16,6 @@ echo 4. Starting Vision Pipeline (Webcam)...
 start "ClassMon Vision" cmd /k ".\.venv\Scripts\activate.bat && python scripts\run_full_pipeline.py"
 
 echo.
-echo NOTE: Ensure Ollama is running in the background for Q&A scoring!
+echo NOTE: Ensure Ollama is running in the background for Q^&A scoring!
 echo All systems started. Close the terminal windows to shut down.
 pause

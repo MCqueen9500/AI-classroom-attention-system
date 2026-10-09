@@ -80,18 +80,27 @@ async def create_session(
     subject_name: str,
     scheduled_start: datetime,
     scheduled_end: datetime,
+    teacher_name: str = 'Teacher',
+    class_div: str = 'A',
+    room_no: str = '101',
+    teacher_id: int | None = None,
 ) -> Session:
     """Creates a new classroom lecture session."""
     session = Session(
         subject_name=subject_name,
+        teacher_name=teacher_name,
+        class_div=class_div,
+        room_no=room_no,
         scheduled_start=scheduled_start,
         scheduled_end=scheduled_end,
         is_active=True,
+        teacher_id=teacher_id,
     )
     db.add(session)
     await db.commit()
     await db.refresh(session)
     return session
+
 
 
 async def get_active_session(db: AsyncSession) -> Optional[Session]:
@@ -221,6 +230,7 @@ async def log_visual_attention(
     posture_score: float,
     confidence: float = 1.0,
     timestamp: Optional[datetime] = None,
+    mar: Optional[float] = None,
 ) -> VisualAttentionLog:
     """Logs a single time-series attention frame measurement."""
     instantaneous_score = compute_instantaneous_attention(
@@ -238,6 +248,7 @@ async def log_visual_attention(
         posture_score=posture_score,
         instantaneous_score=instantaneous_score,
         confidence=confidence,
+        mar=mar,
     )
     db.add(log_entry)
     await db.commit()
@@ -255,17 +266,24 @@ async def log_qa_interaction(
     student_responded: bool,
     teacher_interrupted: bool = False,
     question_timestamp: Optional[datetime] = None,
+    qa_score: Optional[float] = None,
+    question_text: Optional[str] = None,
+    student_response_text: Optional[str] = None,
+    llm_feedback: Optional[str] = None,
 ) -> QAInteraction:
     """
     Logs Q&A interaction.
     Teacher Interruption Safeguard:
     If teacher interrupted or student responded, Q_i = 1.0 (no penalty).
     If student failed to respond in window, Q_i = 0.0.
+    If qa_score is explicitly provided (from LLM), use it directly.
     """
-    if teacher_interrupted or student_responded:
-        qa_score = 1.0
+    if qa_score is not None:
+        computed_score = round(max(0.0, min(1.0, qa_score)), 3)
+    elif teacher_interrupted or student_responded:
+        computed_score = 1.0
     else:
-        qa_score = 0.0
+        computed_score = 0.0
 
     interaction = QAInteraction(
         session_id=session_id,
@@ -273,7 +291,10 @@ async def log_qa_interaction(
         question_timestamp=question_timestamp or datetime.utcnow(),
         teacher_interrupted=teacher_interrupted,
         student_responded=student_responded,
-        qa_score=qa_score,
+        qa_score=computed_score,
+        question_text=question_text,
+        student_response_text=student_response_text,
+        llm_feedback=llm_feedback,
     )
     db.add(interaction)
     await db.commit()
@@ -304,12 +325,20 @@ async def start_intermission(
 
 async def end_intermission(
     db: AsyncSession,
-    intermission_id: int,
+    session_id: str,
     end_timestamp: Optional[datetime] = None,
 ) -> Optional[SessionIntermission]:
-    """Ends an intermission period."""
+    """Ends the most recent open intermission for a session (end_timestamp IS NULL)."""
     result = await db.execute(
-        select(SessionIntermission).where(SessionIntermission.id == intermission_id)
+        select(SessionIntermission)
+        .where(
+            and_(
+                SessionIntermission.session_id == session_id,
+                SessionIntermission.end_timestamp == None,  # noqa: E711
+            )
+        )
+        .order_by(SessionIntermission.start_timestamp.desc())
+        .limit(1)
     )
     intermission = result.scalar_one_or_none()
     if intermission:
@@ -472,3 +501,56 @@ async def get_qa_interactions(db, session_id):
         .order_by(QAInteraction.question_timestamp.asc())
     )
     return list(result.scalars().all())
+
+
+async def mark_attendance_present(
+    db: AsyncSession,
+    session_id: str,
+    roll_no: int,
+) -> AttendanceRecord:
+    """
+    Upserts attendance record for a student, marking them Present.
+    Called by the vision pipeline after a student is seen in 30+ cumulative frames.
+    If record exists: updates status to 'Present' and sets entry_timestamp to now.
+    If not exists: creates it with status='Present'.
+    Returns the record.
+    """
+    from datetime import datetime
+    from sqlalchemy import select
+    result = await db.execute(
+        select(AttendanceRecord).where(
+            AttendanceRecord.session_id == session_id,
+            AttendanceRecord.roll_no == roll_no,
+        )
+    )
+    record = result.scalar_one_or_none()
+    now = datetime.utcnow()
+
+    if record:
+        if record.status != 'Present':
+            record.status = 'Present'
+            record.entry_timestamp = now
+            
+            session = await get_session_by_id(db, session_id)
+            if session:
+                punc, _ = calculate_punctuality_score(session.scheduled_start, session.scheduled_end, now)
+                record.punctuality_score = punc
+            await db.commit()
+            await db.refresh(record)
+    else:
+        session = await get_session_by_id(db, session_id)
+        punc = 100.0
+        if session:
+            punc, _ = calculate_punctuality_score(session.scheduled_start, session.scheduled_end, now)
+            
+        record = AttendanceRecord(
+            session_id=session_id,
+            roll_no=roll_no,
+            entry_timestamp=now,
+            punctuality_score=punc,
+            status='Present',
+        )
+        db.add(record)
+        await db.commit()
+        await db.refresh(record)
+    return record

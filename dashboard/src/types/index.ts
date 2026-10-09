@@ -32,6 +32,7 @@ export interface TelemetryMessage {
   faces: FaceData[]
   qa_window: QAWindowStatus
   alerts: string[]
+  collective_alert?: boolean
   is_paused: boolean
 }
 
@@ -48,6 +49,9 @@ export type WsMessage = TelemetryMessage | AlertMessage
 export interface Session {
   session_id: string
   subject_name: string
+  teacher_name: string
+  class_div: string
+  room_no: string
   scheduled_start: string
   scheduled_end: string
   is_active: boolean
