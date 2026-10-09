@@ -20,20 +20,20 @@ const BAR_COLORS = ['#4f8ef7', '#22d3a0', '#f59e0b', '#ef4444', '#a78bfa', '#38b
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
     <div style={{
-      background: 'var(--card-bg)',
-      border: '1px solid var(--border)',
+      background: '#F5F2EB',
+      border: '1px solid rgba(26, 60, 97, 0.2)',
       borderRadius: 14,
       padding: '24px 28px',
       flex: 1,
       minWidth: 180,
     }}>
-      <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+      <div style={{ fontSize: 12, color: 'rgba(26, 60, 97, 0.6)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
         {label}
       </div>
-      <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--accent)' }}>
+      <div style={{ fontSize: 36, fontWeight: 800, color: '#FC6C54' }}>
         {value}
       </div>
-      {sub && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 12, color: 'rgba(26, 60, 97, 0.6)', marginTop: 4 }}>{sub}</div>}
     </div>
   )
 }
@@ -72,9 +72,9 @@ function AddTeacherModal({ onClose, onCreated }: AddTeacherModalProps) {
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    background: 'var(--bg-dark)',
-    color: 'white',
-    border: '1px solid var(--border)',
+    background: 'transparent',
+    color: '#1A3C61',
+    border: '1px solid rgba(26, 60, 97, 0.2)',
     borderRadius: 8,
     padding: '10px 12px',
     fontSize: 14,
@@ -88,8 +88,8 @@ function AddTeacherModal({ onClose, onCreated }: AddTeacherModalProps) {
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999,
     }}>
       <div style={{
-        background: 'var(--card-bg)',
-        border: '1px solid var(--border)',
+        background: '#F5F2EB',
+        border: '1px solid rgba(26, 60, 97, 0.2)',
         borderRadius: 16,
         padding: '36px 40px',
         width: 480,
@@ -99,14 +99,14 @@ function AddTeacherModal({ onClose, onCreated }: AddTeacherModalProps) {
           <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Add Teacher</h3>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 22, cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', color: 'rgba(26, 60, 97, 0.6)', fontSize: 22, cursor: 'pointer' }}
           >×</button>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
-              <span style={{ color: 'var(--text-muted)', textTransform: 'uppercase' }}>Full Name *</span>
+              <span style={{ color: 'rgba(26, 60, 97, 0.6)', textTransform: 'uppercase' }}>Full Name *</span>
               <input
                 value={form.name}
                 onChange={e => setField('name', e.target.value)}
@@ -115,7 +115,7 @@ function AddTeacherModal({ onClose, onCreated }: AddTeacherModalProps) {
               />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
-              <span style={{ color: 'var(--text-muted)', textTransform: 'uppercase' }}>Username *</span>
+              <span style={{ color: 'rgba(26, 60, 97, 0.6)', textTransform: 'uppercase' }}>Username *</span>
               <input
                 value={form.username}
                 onChange={e => setField('username', e.target.value)}
@@ -126,7 +126,7 @@ function AddTeacherModal({ onClose, onCreated }: AddTeacherModalProps) {
           </div>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
-            <span style={{ color: 'var(--text-muted)', textTransform: 'uppercase' }}>Password *</span>
+            <span style={{ color: 'rgba(26, 60, 97, 0.6)', textTransform: 'uppercase' }}>Password *</span>
             <input
               type="password"
               value={form.password}
@@ -138,7 +138,7 @@ function AddTeacherModal({ onClose, onCreated }: AddTeacherModalProps) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
-              <span style={{ color: 'var(--text-muted)', textTransform: 'uppercase' }}>Subject *</span>
+              <span style={{ color: 'rgba(26, 60, 97, 0.6)', textTransform: 'uppercase' }}>Subject *</span>
               <input
                 value={form.subject}
                 onChange={e => setField('subject', e.target.value)}
@@ -147,7 +147,7 @@ function AddTeacherModal({ onClose, onCreated }: AddTeacherModalProps) {
               />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
-              <span style={{ color: 'var(--text-muted)', textTransform: 'uppercase' }}>Division *</span>
+              <span style={{ color: 'rgba(26, 60, 97, 0.6)', textTransform: 'uppercase' }}>Division *</span>
               <select
                 value={form.division}
                 onChange={e => setField('division', e.target.value)}
@@ -225,23 +225,23 @@ export function Admin() {
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-dark)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent' }}>
 
       {/* ── Navbar ── */}
       <header style={{
         display: 'flex', alignItems: 'center',
         padding: '0 24px', height: 60,
-        background: 'var(--card-bg)',
-        borderBottom: '1px solid var(--border)',
+        background: '#F5F2EB',
+        borderBottom: '1px solid rgba(26, 60, 97, 0.2)',
         gap: 16, flexShrink: 0,
       }}>
-        <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--accent)', letterSpacing: -0.5 }}>
-          ClassMon <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 13, letterSpacing: 0 }}>Admin</span>
+        <div style={{ fontWeight: 800, fontSize: 20, color: '#FC6C54', letterSpacing: -0.5 }}>
+          ClassMon <span style={{ color: 'rgba(26, 60, 97, 0.6)', fontWeight: 400, fontSize: 13, letterSpacing: 0 }}>Admin</span>
         </div>
         <div style={{ flex: 1 }} />
         {user && (
-          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-            Signed in as <strong style={{ color: 'white' }}>{user.name}</strong>
+          <div style={{ fontSize: 13, color: 'rgba(26, 60, 97, 0.6)' }}>
+            Signed in as <strong style={{ color: '#1A3C61' }}>{user.name}</strong>
           </div>
         )}
         <button
@@ -257,8 +257,8 @@ export function Admin() {
 
         {/* ── Sidebar ── */}
         <aside style={{
-          width: 220, background: 'var(--card-bg)',
-          borderRight: '1px solid var(--border)',
+          width: 220, background: '#F5F2EB',
+          borderRight: '1px solid rgba(26, 60, 97, 0.2)',
           padding: '24px 0', flexShrink: 0,
           display: 'flex', flexDirection: 'column', gap: 4,
         }}>
@@ -272,12 +272,12 @@ export function Admin() {
                 background: section === item.id
                   ? 'rgba(79,142,247,0.12)'
                   : 'transparent',
-                color: section === item.id ? 'var(--accent)' : 'var(--text-muted)',
+                color: section === item.id ? '#FC6C54' : 'rgba(26, 60, 97, 0.6)',
                 fontWeight: section === item.id ? 700 : 400,
                 fontSize: 14, cursor: 'pointer',
                 textAlign: 'left', width: '100%',
                 borderLeft: section === item.id
-                  ? '3px solid var(--accent)'
+                  ? '3px solid #FC6C54'
                   : '3px solid transparent',
                 transition: 'all 0.15s',
               }}
@@ -322,8 +322,8 @@ export function Admin() {
 
               {/* Division Bar Chart */}
               <div style={{
-                background: 'var(--card-bg)',
-                border: '1px solid var(--border)',
+                background: '#F5F2EB',
+                border: '1px solid rgba(26, 60, 97, 0.2)',
                 borderRadius: 14,
                 padding: '24px 28px',
               }}>
@@ -331,7 +331,7 @@ export function Admin() {
                   Average Attention by Division
                 </div>
                 {divStats.length === 0 ? (
-                  <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px 0', fontSize: 14 }}>
+                  <div style={{ color: 'rgba(26, 60, 97, 0.6)', textAlign: 'center', padding: '40px 0', fontSize: 14 }}>
                     No division data yet.
                   </div>
                 ) : (
@@ -340,24 +340,24 @@ export function Admin() {
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                       <XAxis
                         dataKey="division"
-                        tick={{ fill: 'var(--text-muted)', fontSize: 13 }}
-                        axisLine={{ stroke: 'var(--border)' }}
+                        tick={{ fill: 'rgba(26, 60, 97, 0.6)', fontSize: 13 }}
+                        axisLine={{ stroke: 'rgba(26, 60, 97, 0.2)' }}
                         tickLine={false}
                         tickFormatter={v => `Div ${v}`}
                       />
                       <YAxis
                         domain={[0, 100]}
-                        tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+                        tick={{ fill: 'rgba(26, 60, 97, 0.6)', fontSize: 12 }}
                         axisLine={false}
                         tickLine={false}
                         tickFormatter={v => `${v}%`}
                       />
                       <Tooltip
                         contentStyle={{
-                          background: 'var(--card-bg)',
-                          border: '1px solid var(--border)',
+                          background: '#F5F2EB',
+                          border: '1px solid rgba(26, 60, 97, 0.2)',
                           borderRadius: 8,
-                          color: 'white',
+                          color: '#1A3C61',
                         }}
                         formatter={(v) => [`${Math.round(Number(v))}%`, 'Avg Attention']}
                         labelFormatter={l => `Division ${l}`}
@@ -390,18 +390,18 @@ export function Admin() {
               </div>
 
               <div style={{
-                background: 'var(--card-bg)',
-                border: '1px solid var(--border)',
+                background: '#F5F2EB',
+                border: '1px solid rgba(26, 60, 97, 0.2)',
                 borderRadius: 14,
                 overflow: 'hidden',
               }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    <tr style={{ borderBottom: '1px solid rgba(26, 60, 97, 0.2)' }}>
                       {['Name', 'Username', 'Subject', 'Division'].map(col => (
                         <th key={col} style={{
                           padding: '14px 20px', textAlign: 'left',
-                          fontSize: 12, color: 'var(--text-muted)',
+                          fontSize: 12, color: 'rgba(26, 60, 97, 0.6)',
                           textTransform: 'uppercase', letterSpacing: 0.8,
                           fontWeight: 600,
                         }}>
@@ -415,21 +415,21 @@ export function Admin() {
                       <tr>
                         <td colSpan={4} style={{
                           padding: '48px', textAlign: 'center',
-                          color: 'var(--text-muted)', fontSize: 14,
+                          color: 'rgba(26, 60, 97, 0.6)', fontSize: 14,
                         }}>
                           No teachers found. Click <strong>+ Add Teacher</strong> to get started.
                         </td>
                       </tr>
                     ) : teachers.map((t, i) => (
                       <tr key={t.id} style={{
-                        borderBottom: i < teachers.length - 1 ? '1px solid var(--border)' : 'none',
+                        borderBottom: i < teachers.length - 1 ? '1px solid rgba(26, 60, 97, 0.2)' : 'none',
                         transition: 'background 0.15s',
                       }}
                         onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                       >
                         <td style={{ padding: '14px 20px', fontWeight: 600 }}>{t.name}</td>
-                        <td style={{ padding: '14px 20px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 13 }}>
+                        <td style={{ padding: '14px 20px', color: 'rgba(26, 60, 97, 0.6)', fontFamily: 'monospace', fontSize: 13 }}>
                           {t.username}
                         </td>
                         <td style={{ padding: '14px 20px' }}>{t.subject}</td>
@@ -437,7 +437,7 @@ export function Admin() {
                           <span style={{
                             display: 'inline-block',
                             background: 'rgba(79,142,247,0.12)',
-                            color: 'var(--accent)',
+                            color: '#FC6C54',
                             borderRadius: 6,
                             padding: '2px 10px',
                             fontSize: 13,
@@ -461,8 +461,8 @@ export function Admin() {
 
               {/* Division breakdown table */}
               <div style={{
-                background: 'var(--card-bg)',
-                border: '1px solid var(--border)',
+                background: '#F5F2EB',
+                border: '1px solid rgba(26, 60, 97, 0.2)',
                 borderRadius: 14,
                 padding: '24px 28px',
                 marginBottom: 24,
@@ -471,16 +471,16 @@ export function Admin() {
                   Division Attention Breakdown
                 </div>
                 {divStats.length === 0 ? (
-                  <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '32px 0', fontSize: 14 }}>
+                  <div style={{ color: 'rgba(26, 60, 97, 0.6)', textAlign: 'center', padding: '32px 0', fontSize: 14 }}>
                     No data available yet.
                   </div>
                 ) : (
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Division</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Avg Attention</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Status</th>
+                      <tr style={{ borderBottom: '1px solid rgba(26, 60, 97, 0.2)' }}>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, color: 'rgba(26, 60, 97, 0.6)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Division</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, color: 'rgba(26, 60, 97, 0.6)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Avg Attention</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, color: 'rgba(26, 60, 97, 0.6)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -488,12 +488,12 @@ export function Admin() {
                         const pct = Math.round(d.avg_attention)
                         const color = pct >= 75 ? 'var(--green)' : pct >= 50 ? '#f59e0b' : 'var(--red)'
                         return (
-                          <tr key={d.division} style={{ borderBottom: i < divStats.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                          <tr key={d.division} style={{ borderBottom: i < divStats.length - 1 ? '1px solid rgba(26, 60, 97, 0.2)' : 'none' }}>
                             <td style={{ padding: '14px 16px', fontWeight: 700 }}>Division {d.division}</td>
                             <td style={{ padding: '14px 16px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                 <div style={{
-                                  height: 8, borderRadius: 4, flex: 1, background: 'var(--border)',
+                                  height: 8, borderRadius: 4, flex: 1, background: 'rgba(26, 60, 97, 0.2)',
                                   overflow: 'hidden', maxWidth: 200,
                                 }}>
                                   <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 4 }} />

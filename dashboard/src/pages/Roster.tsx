@@ -56,19 +56,19 @@ export function Roster() {
             style={{ padding: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 16, transition: 'transform 0.2s' }}
             onClick={() => setSelectedRoll(s.roll_no)}
           >
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(26, 60, 97, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
               {s.roll_no}
             </div>
             <div>
               <div style={{ fontWeight: 600 }}>{s.name}</div>
-              <div style={{ fontSize: 13, color: 'var(--text-dim)' }}>Div: {s.class_div}</div>
+              <div style={{ fontSize: 13, color: 'rgba(26, 60, 97, 0.5)' }}>Div: {s.class_div}</div>
             </div>
           </div>
         ))}
       </div>
 
       {filtered.length === 0 && !loading && (
-        <div style={{ color: 'var(--text-dim)' }}>No students found.</div>
+        <div style={{ color: 'rgba(26, 60, 97, 0.5)' }}>No students found.</div>
       )}
 
       {selectedRoll !== null && (

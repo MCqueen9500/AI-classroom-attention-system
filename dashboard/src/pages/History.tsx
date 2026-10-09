@@ -32,8 +32,8 @@ export function History() {
             style={{
               padding: 20,
               cursor: 'pointer',
-              background: 'var(--surface)',
-              border: s.is_active ? '2px solid var(--accent)' : '1px solid var(--border)',
+              background: '#F5F2EB',
+              border: s.is_active ? '2px solid #FC6C54' : '1px solid rgba(26, 60, 97, 0.2)',
               borderRadius: 12,
               transition: 'transform 0.15s, box-shadow 0.15s',
               boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
@@ -44,10 +44,10 @@ export function History() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
               <h3 style={{ margin: 0 }}>{s.subject_name}</h3>
-              {s.is_active && <span style={{ background: 'var(--accent)', color: '#fff', padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 'bold' }}>LIVE</span>}
+              {s.is_active && <span style={{ background: '#FC6C54', color: '#fff', padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 'bold' }}>LIVE</span>}
             </div>
             
-            <div style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 8 }}>
+            <div style={{ color: 'rgba(26, 60, 97, 0.5)', fontSize: 14, marginBottom: 8 }}>
               {new Date(s.scheduled_start).toLocaleDateString()} at {new Date(s.scheduled_start).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
             </div>
             
@@ -57,7 +57,7 @@ export function History() {
           </div>
         ))}
         {sessions.length === 0 && !api.loading && (
-          <div style={{ color: 'var(--text-dim)' }}>No sessions recorded yet.</div>
+          <div style={{ color: 'rgba(26, 60, 97, 0.5)' }}>No sessions recorded yet.</div>
         )}
       </div>
     </div>

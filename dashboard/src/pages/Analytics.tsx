@@ -15,16 +15,16 @@ interface SessionScores {
 }
 
 const cardStyle: React.CSSProperties = {
-  background: 'var(--surface)',
-  border: '1px solid var(--border)',
+  background: '#F5F2EB',
+  border: '1px solid rgba(26, 60, 97, 0.2)',
   borderRadius: 12,
   padding: 20,
   marginBottom: 24,
 }
 
 const selectStyle: React.CSSProperties = {
-  background: 'var(--surface)',
-  border: '1px solid var(--border)',
+  background: '#F5F2EB',
+  border: '1px solid rgba(26, 60, 97, 0.2)',
   borderRadius: 8,
   padding: '8px 14px',
   color: 'var(--text)',
@@ -79,7 +79,7 @@ export function Analytics() {
 
       {/* Session selector */}
       <div style={cardStyle}>
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+        <div style={{ fontSize: 11, color: 'rgba(26, 60, 97, 0.5)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
           Select Session
         </div>
         <select
@@ -108,7 +108,7 @@ export function Analytics() {
               ['End', new Date(selectedSession.scheduled_end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })],
             ].map(([label, val]) => (
               <div key={label}>
-                <div style={{ fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
+                <div style={{ fontSize: 10, color: 'rgba(26, 60, 97, 0.5)', textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
                 <div style={{ fontWeight: 600, marginTop: 2 }}>{val}</div>
               </div>
             ))}
@@ -117,13 +117,13 @@ export function Analytics() {
       </div>
 
       {loadingScores && (
-        <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 40 }}>
+        <div style={{ textAlign: 'center', color: 'rgba(26, 60, 97, 0.5)', padding: 40 }}>
           Loading scores...
         </div>
       )}
 
       {data && data.scores.length === 0 && !loadingScores && (
-        <div style={{ ...cardStyle, textAlign: 'center', color: 'var(--text-dim)', padding: 40 }}>
+        <div style={{ ...cardStyle, textAlign: 'center', color: 'rgba(26, 60, 97, 0.5)', padding: 40 }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
           No student data recorded for this session yet.<br />
           <span style={{ fontSize: 13 }}>Scores appear once the vision pipeline tracks faces.</span>
@@ -155,15 +155,15 @@ export function Analytics() {
               <BarChart data={data.scores} margin={{ top: 0, right: 10, left: 0, bottom: 40 }}>
                 <XAxis
                   dataKey="name"
-                  stroke="var(--text-dim)"
+                  stroke="rgba(26, 60, 97, 0.5)"
                   fontSize={11}
                   angle={-35}
                   textAnchor="end"
                   interval={0}
                 />
-                <YAxis stroke="var(--text-dim)" fontSize={11} domain={[0, 100]} />
+                <YAxis stroke="rgba(26, 60, 97, 0.5)" fontSize={11} domain={[0, 100]} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8 }}
+                  contentStyle={{ backgroundColor: 'var(--surface2)', border: '1px solid rgba(26, 60, 97, 0.2)', borderRadius: 8 }}
                   labelStyle={{ color: 'var(--text)', fontWeight: 600 }}
                   formatter={(v) => `${Number(v).toFixed(1)}%`}
                 />
@@ -177,7 +177,7 @@ export function Analytics() {
           {/* Detailed scorecard */}
           <div style={cardStyle}>
             <h3 style={{ margin: '0 0 4px', fontSize: 15, color: 'var(--text)' }}>Detailed Scorecard</h3>
-            <p style={{ margin: '0 0 16px', fontSize: 12, color: 'var(--text-dim)' }}>
+            <p style={{ margin: '0 0 16px', fontSize: 12, color: 'rgba(26, 60, 97, 0.5)' }}>
               Final = 20% Punctuality + 70% Attention + 10% Q&A &nbsp;|&nbsp; Click column header to sort
             </p>
             <ScoreTable scores={data.scores} />
