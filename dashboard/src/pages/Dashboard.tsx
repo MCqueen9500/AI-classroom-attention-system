@@ -1,7 +1,4 @@
 // src/pages/Dashboard.tsx
-// Live teacher dashboard — shows idle card when no session is active,
-// full monitoring UI when a session is running.
-
 import { useEffect, useState, useRef } from 'react'
 import { useWebSocket }   from '../hooks/useWebSocket'
 import { useApi }         from '../hooks/useApi'
@@ -19,9 +16,9 @@ import type { Session }   from '../types'
 interface HistoryPoint { time: string; attention: number }
 
 function attentionColor(pct: number): string {
-  if (pct >= 75) return 'color-green'
-  if (pct >= 50) return 'color-yellow'
-  return 'color-red'
+  if (pct >= 75) return 'text-green-600'
+  if (pct >= 50) return 'text-yellow-600'
+  return 'text-coral'
 }
 
 export function Dashboard() {
@@ -36,16 +33,13 @@ export function Dashboard() {
   const api      = useApi()
   const { user } = useAuth()
 
-  // Fetch any already-active session on mount (no auto-popup)
   useEffect(() => {
     api.getActiveSesion().then(s => { if (s) setSession(s) })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
-  const { telemetry, status, alerts, clearAlerts } = useWebSocket(
-    session?.session_id ?? ''
-  )
-
+  const { telemetry, status, alerts, clearAlerts } = useWebSocket(session?.session_id ?? '')
   const lastHistTs = useRef<string>('')
+  
   useEffect(() => {
     if (!telemetry || telemetry.timestamp === lastHistTs.current) return
     lastHistTs.current = telemetry.timestamp
@@ -60,10 +54,7 @@ export function Dashboard() {
     teacher: string, div: string, room: string,
   ) {
     const s = await api.createSession(subject, start, end, teacher, div, room)
-    if (s) {
-      setSession(s)
-      setShowSetup(false)
-    }
+    if (s) { setSession(s); setShowSetup(false); }
   }
 
   async function handlePause() {
@@ -94,57 +85,34 @@ export function Dashboard() {
   const wrongRoll     = qa?.wrong_student ? qa.speaker_roll : null
   const collectiveAlert = telemetry?.collective_alert || false
 
-  // ── IDLE STATE — no active session ───────────────────────────────────────
+  // ── IDLE STATE ────────────────────────────────────────────────────────
   if (!session) {
     return (
       <>
         {showSetup && (
           <SessionSetup onStart={handleCreateSession} loading={api.loading} initialTeacher={user?.name ?? ''} />
         )}
-
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          padding: 40,
-        }}>
-          <div style={{
-            background: 'var(--card-bg)',
-            border: '1px solid var(--border)',
-            borderRadius: 20,
-            padding: '56px 64px',
-            textAlign: 'center',
-            maxWidth: 480,
-            width: '100%',
-            boxShadow: '0 8px 40px rgba(0,0,0,0.3)',
-          }}>
-            <div style={{ fontSize: 56, marginBottom: 16 }}>📋</div>
-            <h2 style={{ margin: '0 0 10px', fontSize: 24, fontWeight: 700 }}>
-              No Active Session
-            </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: '0 0 32px', lineHeight: 1.6 }}>
-              {user?.name ? `Welcome, ${user.name}.` : ''} Start a new session to begin monitoring
-              student attention in real time.
+        <div className="flex items-center justify-center h-full p-10">
+          <div className="bg-ivory border border-blue/20 p-16 text-center max-w-lg w-full relative">
+            <div className="absolute top-0 left-0 w-full h-1 bg-blue" />
+            
+            <div className="text-4xl mb-6 text-blue opacity-50">📋</div>
+            <h2 className="text-2xl font-black text-blue tracking-tight mb-2 uppercase">No Active Session</h2>
+            
+            <p className="text-blue/60 text-sm mb-10 leading-relaxed font-medium">
+              {user?.name ? `Welcome, ${user.name}. ` : ''} 
+              Start a new session to begin monitoring student attention in real time.
             </p>
+            
             <button
-              className="btn btn-primary"
-              style={{ padding: '14px 32px', fontSize: 16, fontWeight: 700, borderRadius: 10 }}
               onClick={() => setShowSetup(true)}
+              className="bg-blue text-ivory text-xs tracking-[0.2em] uppercase font-bold py-4 px-8 w-full transition-colors hover:bg-coral"
             >
               + Start New Session
             </button>
 
             {api.error && (
-              <div style={{
-                marginTop: 20,
-                color: 'var(--red)',
-                fontSize: 13,
-                background: 'rgba(239,68,68,0.08)',
-                border: '1px solid var(--red)',
-                borderRadius: 8,
-                padding: '10px 16px',
-              }}>
+              <div className="mt-6 border border-coral text-coral bg-coral/5 text-xs px-4 py-3 font-semibold">
                 {api.error}
               </div>
             )}
@@ -154,200 +122,150 @@ export function Dashboard() {
     )
   }
 
-  // ── ACTIVE SESSION — live monitoring UI ──────────────────────────────────
+  // ── ACTIVE SESSION ────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', height: '100%' }}>
-
+    <div className="flex h-full font-sans">
       {collectiveAlert && <CollectiveAlert onDismiss={handleResume} />}
-
-      {selectedRoll !== null && (
-        <StudentModal rollNo={selectedRoll} onClose={() => setSelectedRoll(null)} />
-      )}
-
-      {/* Confirm End Session Dialog */}
+      {selectedRoll !== null && <StudentModal rollNo={selectedRoll} onClose={() => setSelectedRoll(null)} />}
+      
+      {/* End Session Confirm */}
       {confirmEnd && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-        }}>
-          <div style={{
-            background: 'var(--card-bg)',
-            border: '1px solid var(--border)',
-            borderRadius: 16,
-            padding: '36px 40px',
-            maxWidth: 400,
-            width: '100%',
-            textAlign: 'center',
-            boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
-          }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
-            <h3 style={{ margin: '0 0 12px', fontSize: 20 }}>End this session?</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: '0 0 28px' }}>
-              This will stop monitoring and save all recorded data. This cannot be undone.
+        <div className="fixed inset-0 bg-blue/80 backdrop-blur-sm flex items-center justify-center z-[1000]">
+          <div className="bg-ivory border border-blue p-10 text-center max-w-sm w-full shadow-2xl relative">
+            <div className="absolute top-0 left-0 w-full h-1 bg-coral" />
+            <div className="text-4xl mb-4">⚠️</div>
+            <h3 className="text-xl font-black text-blue uppercase tracking-tight mb-3">End Session?</h3>
+            <p className="text-blue/70 text-sm mb-8 font-medium">
+              This stops monitoring and finalizes data.
             </p>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button
-                className="btn"
-                style={{ padding: '10px 24px' }}
-                onClick={() => setConfirmEnd(false)}
-              >
+            <div className="flex gap-4">
+              <button onClick={() => setConfirmEnd(false)} className="flex-1 py-3 text-xs tracking-widest uppercase font-bold text-blue border border-blue hover:bg-blue/5">
                 Cancel
               </button>
-              <button
-                className="btn"
-                style={{ padding: '10px 24px', background: 'var(--red)', border: 'none', fontWeight: 700 }}
-                onClick={handleEndSession}
-              >
-                End Session
+              <button onClick={handleEndSession} className="flex-1 py-3 text-xs tracking-widest uppercase font-bold text-ivory bg-coral hover:bg-red-600 transition-colors">
+                End It
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Main content ── */}
-      <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
-
-        {/* Session Banner */}
-        <div style={{
-          background: 'var(--card-bg)',
-          border: '1px solid var(--border)',
-          borderRadius: 12,
-          padding: '16px 24px',
-          marginBottom: 24,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 32,
-          flexWrap: 'wrap',
-        }}>
-          <div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Subject</div>
-            <div style={{ fontWeight: 700, fontSize: 18 }}>{session.subject_name}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Teacher</div>
-            <div style={{ fontWeight: 600 }}>{session.teacher_name}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Division</div>
-            <div style={{ fontWeight: 600 }}>Div {session.class_div}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Room</div>
-            <div style={{ fontWeight: 600 }}>{session.room_no}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Time</div>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>
-              {new Date(session.scheduled_start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              {' → '}
-              {new Date(session.scheduled_end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      {/* Main UI */}
+      <div className="flex-1 px-4 lg:px-8 py-2 overflow-y-auto">
+        
+        {/* Top Banner */}
+        <div className="bg-ivory border border-blue/20 p-5 mb-8 flex items-center justify-between flex-wrap gap-6 relative shadow-sm">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue" />
+          
+          <div className="flex items-center gap-8 pl-2">
+            <div>
+              <div className="text-[9px] text-blue/50 uppercase tracking-widest mb-1 font-bold">Subject</div>
+              <div className="font-black text-blue text-lg uppercase tracking-tight">{session.subject_name}</div>
+            </div>
+            <div className="hidden sm:block">
+              <div className="text-[9px] text-blue/50 uppercase tracking-widest mb-1 font-bold">Teacher</div>
+              <div className="font-bold text-blue text-sm">{session.teacher_name}</div>
+            </div>
+            <div>
+              <div className="text-[9px] text-blue/50 uppercase tracking-widest mb-1 font-bold">Div & Room</div>
+              <div className="font-bold text-blue text-sm">Div {session.class_div} · {session.room_no}</div>
+            </div>
+            <div className="hidden md:block">
+              <div className="text-[9px] text-blue/50 uppercase tracking-widest mb-1 font-bold">Time</div>
+              <div className="font-bold text-blue text-sm opacity-80">
+                {new Date(session.scheduled_start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {' → '}
+                {new Date(session.scheduled_end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
             </div>
           </div>
 
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div className={`header-status ${status}`}>{status}</div>
-            {isPaused
-              ? <button className="btn btn-resume" onClick={handleResume}>▶ Resume</button>
-              : <button className="btn btn-pause"  onClick={handlePause}>⏸ Pause</button>
+          <div className="flex items-center gap-4">
+            <div className="text-[10px] tracking-widest uppercase font-bold px-3 py-1 border border-blue/20 text-blue/70 bg-blue/5">
+              {status}
+            </div>
+            
+            {isPaused 
+              ? <button onClick={handleResume} className="text-xs tracking-widest uppercase font-bold px-5 py-2.5 bg-blue text-ivory hover:bg-coral transition-colors">Resume ▶</button>
+              : <button onClick={handlePause}  className="text-xs tracking-widest uppercase font-bold px-5 py-2.5 border border-blue text-blue hover:bg-blue/5 transition-colors">Pause ⏸</button>
             }
-            <button
-              className="btn"
-              style={{ background: 'var(--red)', border: 'none', fontWeight: 700 }}
-              onClick={() => setConfirmEnd(true)}
-            >
-              End Session
+            <button onClick={() => setConfirmEnd(true)} className="text-xs tracking-widest uppercase font-bold px-5 py-2.5 bg-coral text-ivory hover:bg-red-600 transition-colors">
+              End ⏹
             </button>
           </div>
         </div>
 
-        {isPaused && (
-          <div style={{
-            background: 'rgba(245,158,11,0.1)', border: '1px solid var(--yellow)',
-            borderRadius: 10, padding: '12px 20px', marginBottom: 20,
-            color: 'var(--yellow)', fontWeight: 600, textAlign: 'center',
-          }}>
-            ⏸️ Session Paused — Intermission active. Student scores are not being recorded.
-          </div>
-        )}
+        {/* 3-Column Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* Col 1: Chart & Alerts */}
+          <div className="lg:col-span-3 flex flex-col gap-6">
+            <div className="bg-ivory border border-blue/20 flex flex-col min-h-[300px]">
+              <div className="border-b border-blue/20 p-3 bg-blue/5">
+                <h3 className="text-xs tracking-widest uppercase font-bold text-blue">Class Attention</h3>
+              </div>
+              <div className="flex-1 p-4 flex flex-col">
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className={`text-4xl font-black ${attentionColor(classPct)}`}>
+                    {classPct.toFixed(0)}%
+                  </span>
+                  <span className="text-xs tracking-widest uppercase font-bold text-blue/40">Current</span>
+                </div>
+                <div className="flex-1 mt-2">
+                  <AttentionChart history={history} />
+                </div>
+              </div>
+            </div>
 
-        {/* Stat Row */}
-        <div className="stat-row">
-          <div className="stat-card">
-            <div className="stat-label">Class Attention</div>
-            <div className={`stat-value ${attentionColor(classPct)}`}>
-              {Math.round(classPct)}<span style={{ fontSize: 18 }}>%</span>
+            <div className="bg-ivory border border-blue/20 flex flex-col h-64">
+              <div className="border-b border-blue/20 p-3 bg-blue/5 flex justify-between items-center">
+                <h3 className="text-xs tracking-widest uppercase font-bold text-blue">Alerts Log</h3>
+                <button onClick={clearAlerts} className="text-[9px] tracking-widest uppercase text-blue/50 hover:text-coral font-bold">Clear</button>
+              </div>
+              <div className="flex-1 overflow-hidden p-2">
+                <AlertsLog alerts={alerts} onClear={clearAlerts} />
+              </div>
             </div>
-            <div className="stat-sub">{faces.length} faces tracked</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Drowsy</div>
-            <div className={`stat-value ${faces.filter(f => f.is_drowsy).length > 0 ? 'color-red' : 'color-green'}`}>
-              {faces.filter(f => f.is_drowsy).length}
+            
+            <div className="bg-ivory border border-blue/20 flex flex-col h-64">
+               <AttendanceLiveList sessionId={session.session_id} telemetry={telemetry} />
             </div>
-            <div className="stat-sub">students drowsy now</div>
           </div>
-          <div className="stat-card">
-            <div className="stat-label">Q&amp;A Window</div>
-            <div className={`stat-value ${qa?.active ? 'color-accent' : 'color-green'}`}>
-              {qa?.active ? `${Math.ceil(qa.seconds_remaining)}s` : '--'}
-            </div>
-            <div className="stat-sub">{qa?.active ? `Roll ${qa.asked_roll}` : 'No active window'}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Alerts</div>
-            <div className={`stat-value ${alerts.length > 0 ? 'color-red' : 'color-green'}`}>
-              {alerts.length}
-            </div>
-            <div className="stat-sub">unread alerts</div>
-          </div>
-        </div>
 
-        {/* Student Grid */}
-        <div style={{ marginTop: 24 }}>
-          <div className="section-title" style={{ fontSize: 16, marginBottom: 14 }}>
-            Live Student Attention — Div {session.class_div}
+          {/* Col 2: Face Grid */}
+          <div className="lg:col-span-6 bg-ivory border border-blue/20 flex flex-col">
+            <div className="border-b border-blue/20 p-3 bg-blue/5 flex justify-between items-center">
+              <h3 className="text-xs tracking-widest uppercase font-bold text-blue">Live Camera Feed</h3>
+              <span className="text-[10px] tracking-widest uppercase text-blue/60 font-bold bg-blue/10 px-2 py-0.5">
+                {faces.length} Detected
+              </span>
+            </div>
+            <div className="flex-1 bg-ivory/50 p-4">
+              <div className="grid grid-cols-3 gap-3">
+                {faces.map((f, i) => (
+                  <StudentCard 
+                    key={i} 
+                    face={f} 
+                    isWrongSpeaker={f.roll_no === wrongRoll} 
+                    onClick={() => f.roll_no && setSelectedRoll(f.roll_no)}
+                  />
+                ))}
+                {faces.length === 0 && (
+                  <div className="col-span-3 text-center py-16 text-sm tracking-widest uppercase text-blue/40 font-bold">
+                    No faces detected in frame
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-          {faces.length === 0 ? (
-            <div style={{
-              background: 'var(--card-bg)', border: '1px dashed var(--border)',
-              borderRadius: 12, padding: '40px 20px', textAlign: 'center',
-              color: 'var(--text-muted)',
-            }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📷</div>
-              No faces detected yet.<br />
-              <span style={{ fontSize: 13 }}>Make sure the webcam pipeline is running: <code>python scripts/run_full_pipeline.py</code></span>
-            </div>
-          ) : (
-            <div className="student-grid">
-              {faces.map(face => (
-                <StudentCard
-                  key={face.roll_no}
-                  face={face}
-                  isWrongSpeaker={face.roll_no === wrongRoll}
-                  onClick={() => setSelectedRoll(face.roll_no)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
 
-        <div style={{ marginTop: 24 }}>
-          <AttentionChart history={history} />
+          {/* Col 3: Q&A */}
+          <div className="lg:col-span-3">
+            <QAPanel qa={qa} />
+          </div>
+
         </div>
       </div>
-
-      {/* ── Right Sidebar ── */}
-      <aside className="app-sidebar">
-        <QAPanel qa={qa ?? {
-          active: false, asked_roll: null, question_text: null,
-          seconds_remaining: 0, speaker_roll: null, wrong_student: false,
-        }} />
-        <hr style={{ border: 'none', borderTop: '1px solid var(--border)' }} />
-        <AlertsLog alerts={alerts} onClear={clearAlerts} />
-        <AttendanceLiveList sessionId={session.session_id} telemetry={telemetry} />
-      </aside>
-
     </div>
   )
 }
