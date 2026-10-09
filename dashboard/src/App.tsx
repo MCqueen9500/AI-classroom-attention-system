@@ -12,7 +12,9 @@ import { Navbar } from './components/Navbar'
 import { Sidebar } from './components/Sidebar'
 
 function ProtectedLayout({ adminOnly = false }: { adminOnly?: boolean }) {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+
+  if (loading) return null
 
   if (!user) return <Navigate to="/login" replace />
   if (adminOnly && !user?.is_admin) return <Navigate to="/dashboard" replace />
@@ -51,8 +53,8 @@ function ProtectedLayout({ adminOnly = false }: { adminOnly?: boolean }) {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Registration />} />
@@ -60,7 +62,7 @@ export default function App() {
           <Route path="/admin/*" element={<ProtectedLayout adminOnly={true} />} />
           <Route path="/*" element={<ProtectedLayout adminOnly={false} />} />
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }
