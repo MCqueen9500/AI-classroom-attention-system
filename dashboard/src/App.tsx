@@ -40,6 +40,7 @@ function ProtectedLayout({ adminOnly = false }: { adminOnly?: boolean }) {
                    <Route path="/history" element={<History />} />
                    <Route path="/analytics" element={<Analytics />} />
                    <Route path="/roster" element={<Roster />} />
+                   <Route path="/students" element={<Registration />} />
                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
                  </>
                )}
@@ -57,7 +58,6 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Registration />} />
           
           <Route path="/admin/*" element={<ProtectedLayout adminOnly={true} />} />
           <Route path="/*" element={<ProtectedLayout adminOnly={false} />} />
